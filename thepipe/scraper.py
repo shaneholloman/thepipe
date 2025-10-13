@@ -500,11 +500,21 @@ def get_images_from_markdown(text: str) -> List[Image.Image]:
     images = []
     for url in image_urls:
         extension = os.path.splitext(urlparse(url).path)[1]
-        if extension in {".jpg", ".jpeg", ".png"}:
-            img = Image.open(requests.get(url, stream=True).raw)
-        else:
+        if extension not in {".jpg", ".jpeg", ".png"}:
             # ignore incompatible image extractions
             continue
+
+        try:
+            response = requests.get(
+                url,
+                timeout=10,
+                headers={"User-Agent": USER_AGENT_STRING},
+            )
+            response.raise_for_status()
+        except Exception:
+            continue
+
+        img = Image.open(BytesIO(response.content))
         images.append(img)
     return images
 
@@ -723,7 +733,6 @@ def extract_page_content(
                             # Try direct URL first
                             response = requests.get(
                                 img_path,
-                                stream=True,
                                 timeout=10,
                                 headers={"User-Agent": USER_AGENT_STRING},
                             )
@@ -749,7 +758,6 @@ def extract_page_content(
                                     )
                                     response = requests.get(
                                         path_with_schema,
-                                        stream=True,
                                         timeout=10,
                                         headers={"User-Agent": USER_AGENT_STRING},
                                     )
@@ -770,7 +778,6 @@ def extract_page_content(
                                         path_with_schema_and_netloc = f"{parsed_url.scheme}://{parsed_url.netloc}/{img_path}"
                                         response = requests.get(
                                             path_with_schema_and_netloc,
-                                            stream=True,
                                             timeout=10,
                                             headers={"User-Agent": USER_AGENT_STRING},
                                         )

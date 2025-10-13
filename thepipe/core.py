@@ -5,7 +5,7 @@ import json
 import os
 import re
 import time
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, Iterable, List, Optional, Tuple, Union
 import requests
 from PIL import Image
 
@@ -29,6 +29,27 @@ DEFAULT_EMBEDDING_MODEL = os.getenv(
 # for persistent images via filehosting
 HOST_IMAGES = os.getenv("HOST_IMAGES", "false").lower() == "true"
 HOST_URL = os.getenv("HOST_URL", "https://thepipe-api.up.railway.app")
+
+
+def prepare_image(image: Image.Image) -> Image.Image:
+    """Return an in-memory copy of ``image`` with its underlying resources closed."""
+
+    try:
+        image.load()
+    except Exception:
+        pass
+
+    try:
+        prepared_image = image.copy()
+    except Exception:
+        return image
+
+    try:
+        image.close()
+    except Exception:
+        pass
+
+    return prepared_image
 
 
 def _ensure_llama_index() -> Tuple["Document", "ImageDocument"]:
@@ -66,16 +87,16 @@ class Chunk:
     def __init__(
         self,
         path: Optional[str] = None,
-        text: Optional[str] = "",
-        images: Optional[List[Image.Image]] = [],
-        audios: Optional[List] = [],
-        videos: Optional[List] = [],
+        text: Optional[str] = None,
+        images: Optional[Iterable[Image.Image]] = None,
+        audios: Optional[Iterable] = None,
+        videos: Optional[Iterable] = None,
     ):
         self.path = path
-        self.text = text
-        self.images = images
-        self.audios = audios
-        self.videos = videos
+        self.text = text or ""
+        self.images = [prepare_image(image) for image in images] if images else []
+        self.audios = list(audios) if audios else []
+        self.videos = list(videos) if videos else []
 
     def __repr__(self) -> str:
         parts = []
