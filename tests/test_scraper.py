@@ -7,7 +7,20 @@ import sys
 import zipfile
 from PIL import Image
 import pandas as pd
-from openai import OpenAI
+
+try:
+    from openai import OpenAI
+except ImportError:  # pragma: no cover - optional in CI
+    OpenAI = None  # type: ignore[assignment]
+
+try:
+    import whisper  # noqa: F401  # pragma: no cover - optional dependency
+
+    HAS_WHISPER = True
+except ImportError:  # pragma: no cover - optional dependency
+    HAS_WHISPER = False
+
+SKIP_NETWORK_TESTS = os.getenv("THEPIPE_SKIP_NETWORK_TESTS") == "1"
 
 sys.path.append("..")
 import thepipe.core as core
@@ -19,7 +32,7 @@ class test_scraper(unittest.TestCase):
         self.files_directory = os.path.join(os.path.dirname(__file__), "files")
         self.outputs_directory = "outputs"
         # create a client we can re-use for ai_extraction scenarios
-        self.client = OpenAI()
+        self.client = OpenAI() if OpenAI is not None else None
 
     def tearDown(self):
         # clean up outputs
@@ -142,6 +155,9 @@ class test_scraper(unittest.TestCase):
         )
 
     # requires LLM server to be set up
+    @unittest.skipIf(
+        OpenAI is None or not os.getenv("OPENAI_API_KEY"), "OpenAI API key required"
+    )
     def test_scrape_pdf_with_ai_extraction(self):
         chunks = scraper.scrape_file(
             os.path.join(self.files_directory, "example.pdf"),
@@ -190,6 +206,7 @@ class test_scraper(unittest.TestCase):
             any(chunk.images and len(chunk.images or []) > 0 for chunk in chunks)
         )
 
+    @unittest.skipUnless(HAS_WHISPER, "Whisper extra is not installed")
     def test_scrape_audio(self):
         chunks = scraper.scrape_file(
             os.path.join(self.files_directory, "example.mp3"), verbose=True
@@ -207,6 +224,7 @@ class test_scraper(unittest.TestCase):
             any(chunk.text and "citizens" in chunk.text.lower() for chunk in chunks)
         )
 
+    @unittest.skipUnless(HAS_WHISPER, "Whisper extra is not installed")
     def test_scrape_video(self):
         chunks = scraper.scrape_file(
             os.path.join(self.files_directory, "example.mp4"), verbose=True
@@ -245,6 +263,7 @@ class test_scraper(unittest.TestCase):
             any(chunk.images and len(chunk.images or []) > 0 for chunk in chunks)
         )
 
+    @unittest.skipIf(SKIP_NETWORK_TESTS, "Network tests disabled")
     def test_scrape_tweet(self):
         tweet_url = "https://x.com/ylecun/status/1796734866156843480"
         chunks = scraper.scrape_url(tweet_url)
@@ -256,6 +275,7 @@ class test_scraper(unittest.TestCase):
         self.assertTrue(chunks[0].text and len(chunks[0].text or "") > 0)
         self.assertTrue(chunks[0].images and len(chunks[0].images or []) > 0)
 
+    @unittest.skipIf(SKIP_NETWORK_TESTS, "Network tests disabled")
     def test_scrape_url(self):
         # verify web page scrape result
         chunks = scraper.scrape_url("https://en.wikipedia.org/wiki/Piping")
@@ -296,6 +316,10 @@ class test_scraper(unittest.TestCase):
             any(chunk.images and len(chunk.images or []) > 0 for chunk in chunks)
         )
 
+    @unittest.skipIf(SKIP_NETWORK_TESTS, "Network tests disabled")
+    @unittest.skipIf(
+        OpenAI is None or not os.getenv("OPENAI_API_KEY"), "OpenAI API key required"
+    )
     def test_scrape_url_with_ai_extraction(self):
         # verify web page scrape result with ai extraction
         chunks = scraper.scrape_url(

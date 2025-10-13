@@ -2,7 +2,18 @@ import unittest
 import os
 import sys
 from typing import List, cast
-from openai import OpenAI
+
+try:
+    from openai import OpenAI
+except ImportError:  # pragma: no cover - optional in tests
+    OpenAI = None  # type: ignore[assignment]
+
+try:
+    import sentence_transformers  # noqa: F401  # pragma: no cover - optional import
+
+    HAS_SENTENCE_TRANSFORMERS = True
+except ImportError:  # pragma: no cover - optional import
+    HAS_SENTENCE_TRANSFORMERS = False
 
 sys.path.append("..")
 import thepipe.chunker as chunker
@@ -45,6 +56,7 @@ class test_chunker(unittest.TestCase):
         self.assertIn("bar next", t2)
         self.assertIn("end", t2)
 
+    @unittest.skipIf(OpenAI is None or not os.getenv("OPENAI_API_KEY"), "OpenAI API key required")
     def test_chunk_agentic(self):
         openai_client = OpenAI()
         chunks = self.read_markdown_file(self.example_markdown_path)
@@ -77,6 +89,7 @@ class test_chunker(unittest.TestCase):
                     calculate_tokens([chunk]), self.max_tokens_per_chunk
                 )
 
+    @unittest.skipUnless(HAS_SENTENCE_TRANSFORMERS, "sentence-transformers extra is not installed")
     def test_chunk_semantic(self):
         test_sentence = "Computational astrophysics. Numerical astronomy. Bananas."
         chunks = [Chunk(text=test_sentence)]

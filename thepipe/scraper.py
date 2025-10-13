@@ -101,6 +101,18 @@ Do not output anything else.""",
 FILESIZE_LIMIT_MB = int(os.getenv("FILESIZE_LIMIT_MB", 50))  # for url scraping only
 
 
+def _load_whisper():
+    try:
+        import whisper
+    except ImportError as exc:  # pragma: no cover - optional dependency
+        raise ImportError(
+            "Audio and video transcription requires the optional dependency `openai-whisper`. "
+            "Install it with `pip install thepipe-api[audio]` or include the `gpu` extra."
+        ) from exc
+
+    return whisper
+
+
 def detect_source_mimetype(source: str) -> str:
     # try to detect the file type by its extension
     _, extension = os.path.splitext(source)
@@ -905,7 +917,7 @@ def scrape_video(
     verbose: bool = False,
     include_output_images: bool = True,
 ) -> List[Chunk]:
-    import whisper
+    whisper = _load_whisper()
     from moviepy.editor import VideoFileClip
 
     # Splits the video into chunks of length MAX_WHISPER_DURATION, extracts
@@ -996,7 +1008,7 @@ def scrape_youtube(
 
 
 def scrape_audio(file_path: str, verbose: bool = False) -> List[Chunk]:
-    import whisper
+    whisper = _load_whisper()
 
     model = whisper.load_model("base")
     result = model.transcribe(audio=file_path, verbose=verbose)

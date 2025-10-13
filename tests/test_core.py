@@ -100,6 +100,7 @@ class test_core(unittest.TestCase):
         self.assertIsInstance(images, list)
         self.assertEqual(len(images), 1)
 
+    @unittest.skipUnless(core.has_llama_index(), "llama-index extra is not installed")
     def test_chunk_to_llamaindex(self):
         chunk = core.Chunk(
             path="example.md",

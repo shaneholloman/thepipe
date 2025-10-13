@@ -37,11 +37,38 @@ Thepipe can be installed via the command line:
 pip install thepipe-api
 ```
 
-If you need full functionality with media-rich sources such as webpages, video, and audio, you can choose to install the following dependencies:
+The default install only pulls in CPU-friendly dependencies so it is suitable for constrained environments and CI systems. GPU-enabled libraries such as PyTorch and Triton are left as optional extras.
+
+### Optional extras
+
+The package exposes a set of extras so you can opt-in to heavier dependencies on demand:
+
+| Extra                      | Installs                                  | When to use it                                        |
+| -------------------------- | ----------------------------------------- | ----------------------------------------------------- |
+| `thepipe-api[audio]`       | `openai-whisper`                          | Local audio/video transcription via Whisper.          |
+| `thepipe-api[semantic]`    | `sentence-transformers`                   | Semantic chunking with transformer embeddings.        |
+| `thepipe-api[llama-index]` | `llama-index`                             | `Chunk.to_llamaindex()` conversions.                  |
+| `thepipe-api[gpu]`         | PyTorch + Whisper + Sentence Transformers | Full GPU acceleration with VLM fine-tuning workloads. |
+
+If you are targeting CPU-only machines but still need the extras that depend on PyTorch, install the CPU wheels directly from the PyTorch index first and then add the extra. For example:
+
+```bash
+pip install torch==2.5.1+cpu torchvision==0.20.1+cpu torchaudio==2.5.1+cpu \
+  --index-url https://download.pytorch.org/whl/cpu
+pip install thepipe-api[semantic]
+```
+
+If you need full functionality with media-rich sources such as webpages, video, and audio, you can choose to install the following system dependencies:
 
 ```bash
 apt-get update && apt-get install -y git ffmpeg
 python -m playwright install --with-deps chromium
+```
+
+and use the global installation with pip:
+
+```bash
+pip install thepipe-api[all]
 ```
 
 ### Default setup (OpenAI)
@@ -143,7 +170,13 @@ response = client.chat.completions.create(
 
 ### LLamaIndex Integration 🦙
 
-A chunk can be converted to LlamaIndex `Document`/`ImageDocument` with `.to_llamaindex`.
+Install the optional extra and then call `.to_llamaindex`:
+
+```bash
+pip install thepipe-api[llama-index]
+```
+
+After installation, a chunk can be converted to LlamaIndex `Document`/`ImageDocument` with `.to_llamaindex`. Without the extra, a helpful error is raised instead of failing at import time.
 
 ### Structured extraction 🗂️
 
@@ -167,6 +200,17 @@ results, tokens_used = extract(
     openai_client=client
 )
 ```
+
+## Running the test suite 🧪
+
+Install the base requirements plus any extras you rely on, then execute:
+
+```bash
+pip install -r requirements.txt
+python -m unittest discover
+```
+
+Tests that depend on optional extras (Whisper, Sentence Transformers, LlamaIndex) or an OpenAI API key are skipped automatically when the corresponding dependency is unavailable.
 
 ## Sponsors
 

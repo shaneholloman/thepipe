@@ -5,10 +5,20 @@ import json
 import os
 import re
 import time
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 import requests
 from PIL import Image
-from llama_index.core.schema import Document, ImageDocument
+
+try:  # Optional LlamaIndex dependency
+    from llama_index.core.schema import Document as _LlamaDocument
+    from llama_index.core.schema import ImageDocument as _LlamaImageDocument
+except ImportError:  # pragma: no cover - handled dynamically in helpers below
+    _LlamaDocument = None  # type: ignore[assignment]
+    _LlamaImageDocument = None  # type: ignore[assignment]
+
+# Re-export for backwards compatibility (may be ``None`` when not installed)
+Document = _LlamaDocument  # type: ignore[assignment]
+ImageDocument = _LlamaImageDocument  # type: ignore[assignment]
 
 # LLM provider info, defaults to openai
 DEFAULT_AI_MODEL = os.getenv("DEFAULT_AI_MODEL", "gpt-4o")
@@ -19,6 +29,37 @@ DEFAULT_EMBEDDING_MODEL = os.getenv(
 # for persistent images via filehosting
 HOST_IMAGES = os.getenv("HOST_IMAGES", "false").lower() == "true"
 HOST_URL = os.getenv("HOST_URL", "https://thepipe-api.up.railway.app")
+
+
+def _ensure_llama_index() -> Tuple["Document", "ImageDocument"]:
+    """Import LlamaIndex lazily and provide a helpful error message if missing."""
+
+    global _LlamaDocument, _LlamaImageDocument
+
+    if _LlamaDocument is not None and _LlamaImageDocument is not None:
+        return _LlamaDocument, _LlamaImageDocument  # type: ignore[return-value]
+
+    try:
+        from llama_index.core.schema import Document as doc_cls
+        from llama_index.core.schema import ImageDocument as image_doc_cls
+    except ImportError as exc:  # pragma: no cover - exercised via has_llama_index
+        raise ImportError(
+            "LlamaIndex support is optional. Install it with "
+            "`pip install thepipe-api[llama-index]` to use `Chunk.to_llamaindex`."
+        ) from exc
+
+    _LlamaDocument, _LlamaImageDocument = doc_cls, image_doc_cls
+    return doc_cls, image_doc_cls  # type: ignore[return-value]
+
+
+def has_llama_index() -> bool:
+    """Return ``True`` when the optional LlamaIndex dependency is available."""
+
+    try:
+        _ensure_llama_index()
+    except ImportError:
+        return False
+    return True
 
 
 class Chunk:
@@ -58,7 +99,8 @@ class Chunk:
     def __str__(self) -> str:
         return self.__repr__()
 
-    def to_llamaindex(self) -> Union[List[Document], List[ImageDocument]]:
+    def to_llamaindex(self) -> Union[List["Document"], List["ImageDocument"]]:
+        DocumentCls, ImageDocumentCls = _ensure_llama_index()
         document_text = self.text if self.text else ""
         metadata = {"filepath": self.path} if self.path else {}
 
@@ -77,7 +119,7 @@ class Chunk:
                 img_b64 = base64.b64encode(img_bytes).decode("utf-8")
 
                 image_docs.append(
-                    ImageDocument(
+                    ImageDocumentCls(
                         text=document_text,
                         image=img_b64,
                         extra_info=metadata,
@@ -86,7 +128,7 @@ class Chunk:
             return image_docs
 
         # Fallback to plain text Document
-        return [Document(text=document_text, extra_info=metadata)]
+        return [DocumentCls(text=document_text, extra_info=metadata)]
 
     def to_message(
         self,

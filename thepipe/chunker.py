@@ -6,7 +6,6 @@ from .core import (
     DEFAULT_AI_MODEL,
     DEFAULT_EMBEDDING_MODEL,
 )
-from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 from pydantic import BaseModel
 from openai import OpenAI
@@ -106,7 +105,13 @@ def chunk_semantic(
     buffer_size: int = 3,
     similarity_threshold: float = 0.1,
 ) -> List[Chunk]:
-    from sentence_transformers import SentenceTransformer
+    try:
+        from sentence_transformers import SentenceTransformer
+    except ImportError as exc:  # pragma: no cover - exercised via runtime usage
+        raise ImportError(
+            "`chunk_semantic` requires the optional dependency `sentence-transformers`. "
+            "Install it with `pip install thepipe-api[semantic]` or include the `gpu` extra."
+        ) from exc
 
     embedding_model = SentenceTransformer(model_name_or_path=model)
     # Flatten the chunks into sentences
@@ -135,9 +140,10 @@ def chunk_semantic(
         # Check similarity with the last sentence in the current group
         # If the similarity is above the threshold, add the sentence to the group
         # Otherwise, start a new group
-        a = embedding.reshape(1, -1)
-        b = embeddings[current_group[-1]].reshape(1, -1)
-        similarity = cosine_similarity(a, b)[0, 0]
+        a = embedding
+        b = embeddings[current_group[-1]]
+        denom = float(np.linalg.norm(a) * np.linalg.norm(b))
+        similarity = float(np.dot(a, b) / denom) if denom else 0.0
         if similarity >= similarity_threshold:
             current_group.append(i)
         else:
