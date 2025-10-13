@@ -136,16 +136,26 @@ def main() -> None:
             verbose=args.verbose,
             openai_client=openai_client,
         )
-    else:
+    elif os.path.isfile(args.source):
         chunks = scrape_file(
             filepath=args.source,
             verbose=args.verbose,
             openai_client=openai_client,
             model=args.openai_model,
         )
+    else:
+        raise ValueError(f"Invalid source: {args.source}")
 
     # Persist results
-    save_outputs(chunks=chunks, verbose=args.verbose, text_only=args.text_only)
+    save_outputs(
+        chunks=chunks,
+        verbose=args.verbose,
+        text_only=args.text_only,
+        output_folder="thepipe_output",
+    )
+
+    if args.verbose:
+        print(f"Scraping complete. Outputs saved to 'thepipe_output/'.")
 
 
 # Entry-point shim

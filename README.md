@@ -253,35 +253,6 @@ export GITHUB_TOKEN=...
 
 ## Contributing
 
-We welcome contributions! To get started:
+This package is quite opinionated in its design and implementation. Some modules are tightly coupled to the overall architecture, while others are designed to be hacked.
 
-1. Fork the repo and create a feature branch:
-
-   ```bash
-   git checkout -b feature/my-new-feature
-   ```
-
-2. Install dependencies & run tests:
-
-   ```bash
-   pip install -r requirements.txt
-   python -m unittest discover
-   ```
-
-3. Make your changes, format them, and commit them:
-
-   ```bash
-   black .
-   git add .
-   git commit -m "..."
-   ```
-
-4. Push to your fork and create a pull request:
-
-   ```bash
-   git push origin feature/my-new-feature
-   ```
-
-5. Submit a pull request to the main repository.
-
-6. Wait for review and feedback from the maintainers. This may take some time, so please be patient!
+Before contributing, please create an issue on GitHub to discuss your ideas and how to best implement them. Pull requests that do not follow this process will be closed.
